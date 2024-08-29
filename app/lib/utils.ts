@@ -71,9 +71,43 @@ interface ModifierGroup {
   modifiers?: Item[];
 }
 
+interface Modifier {
+  price?: number | string;
+  qty?: number | string;
+  modifierGroups?: ModifierGroup[];
+}
+
+export const calcModifierPrice = (modifier: Modifier): number => {
+  const basePrice = Number(modifier.price ?? 0);
+  const quantity = Number(modifier.qty ?? 1);
+
+  // Validate base price and quantity to ensure they are not NaN
+  if (isNaN(basePrice) || isNaN(quantity)) {
+    console.error('Invalid price or quantity for modifier:', modifier);
+    return 0; // Return 0 if either is invalid
+  }
+
+  let modifierTotal = basePrice * quantity;
+
+  // Process and sum the cost of all nested modifiers recursively
+  const modifierGroups = modifier.modifierGroups ?? [];
+  if (modifierGroups.length > 0) {
+    modifierGroups.forEach((modGroup: ModifierGroup) => {
+      const modifiers = modGroup.modifiers ?? [];
+      if (modifiers.length > 0) {
+        modifiers.forEach((mod: Modifier) => {
+          modifierTotal += calcModifierPrice(mod); // Recursively calculate modifier price
+        });
+      }
+    });
+  }
+
+  return modifierTotal;
+}
+
 export const calcItemPrice = (item: Item): number => {
-  const basePrice = Number(item.price) || 0;
-  const quantity = Number(item.qty) || 1;
+  const basePrice = Number(item.price ?? 0);
+  const quantity = Number(item.qty ?? 0);
 
   // Validate base price and quantity to ensure they are not NaN
   if (isNaN(basePrice) || isNaN(quantity)) {
@@ -90,7 +124,7 @@ export const calcItemPrice = (item: Item): number => {
       const modifiers = modGroup.modifiers ?? [];
       if (modifiers.length > 0) {
         modifiers.forEach((mod: Item) => {
-          itemTotal += calcItemPrice(mod); // Recursively calculate modifier price
+          itemTotal += calcModifierPrice(mod); // Recursively calculate modifier price
         });
       }
     });
@@ -99,11 +133,10 @@ export const calcItemPrice = (item: Item): number => {
   return itemTotal;
 }
 
-export const calcTotal = (cart: object) => {
+export const calcTotal = (products: Array<Item>) => {
   let totalPrice = 0;
-
-  Object.values(cart).forEach((item) => {
-    totalPrice += calcItemPrice(item);
+  products.forEach((product) => {
+    totalPrice += calcItemPrice(product);
   });
 
   return totalPrice;
